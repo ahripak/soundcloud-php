@@ -1,0 +1,48 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+// Load our configuration values.
+$dotenv = new Dotenv\Dotenv(__DIR__);
+$dotenv->load();
+
+$client_id = getenv('CLIENT_ID');
+$artist_id = getenv('ARTIST_ID');
+$api_base  = 'https://api.soundcloud.com/';
+
+$likes_link = $api_base . '/users/' . $artist_id . '/favorites.json?limit=50&linked_partitioning=1&client_id=' . $client_id;
+
+$likes = [];
+
+$has_more = true;
+
+// Start by compiling a list of "likes" or "favorites".
+while($has_more) {
+	$response = json_decode(file_get_contents($likes_link));
+
+	if (! isset($response->collection)) {
+		$has_more = false;
+	}
+
+	if (! isset($response->next_href)) {
+		$has_more = false;
+	} else {
+		$likes_link = $response->next_href;
+	}
+
+	$likes = array_merge($likes, $response->collection);
+}
+
+// Walk through each like and download into a folder here.
+foreach ($likes as $like) {
+	if (! isset($like->stream_url)) continue;
+
+	var_dump($like->title);
+	var_dump($like->stream_url);
+
+	$song = file_get_contents($like->stream_url . '?client_id=' . $client_id);
+	file_put_contents(__DIR__ . '/downloads/' . $like->title . '.mp3', $song);
+
+	sleep(1);
+}
